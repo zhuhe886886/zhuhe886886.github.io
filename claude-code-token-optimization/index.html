@@ -1,0 +1,1309 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Claude Code Token 优化纪实</title>
+  <style>
+    :root {
+      --ink: #161616;
+      --muted: #5f625d;
+      --paper: #f8faf6;
+      --panel: #ffffff;
+      --line: #d9ded3;
+      --lime: #c9f24b;
+      --lime-deep: #84a822;
+      --coral: #f05b45;
+      --teal: #0aa6a6;
+      --violet: #7057c8;
+      --gold: #d7a326;
+      --mono: "SFMono-Regular", "Menlo", "Cascadia Mono", monospace;
+      --display: "Songti SC", "Noto Serif CJK SC", "Iowan Old Style", Georgia, serif;
+      --body: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(22, 22, 22, 0.045) 1px, transparent 1px) 0 0 / 48px 48px,
+        linear-gradient(0deg, rgba(22, 22, 22, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+        radial-gradient(circle at 28% 12%, rgba(201, 242, 75, 0.18), transparent 24rem),
+        var(--paper);
+      font-family: var(--body);
+      line-height: 1.72;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: var(--ink);
+      text-decoration-color: var(--teal);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.92em;
+      background: #eef3e7;
+      border: 1px solid #dfe6d7;
+      padding: 0.08rem 0.28rem;
+      border-radius: 4px;
+    }
+
+    pre {
+      margin: 1rem 0 0;
+      padding: 1rem;
+      overflow-x: hidden;
+      background: #fbfff0;
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      line-height: 1.62;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      box-shadow: 6px 6px 0 rgba(22, 22, 22, 0.86);
+    }
+
+    pre code {
+      display: block;
+      padding: 0;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      font-size: inherit;
+      line-height: inherit;
+      white-space: inherit;
+      overflow-wrap: inherit;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      min-height: 92vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(310px, 0.9fr);
+      gap: clamp(1.8rem, 4vw, 4.5rem);
+      align-items: center;
+      padding: 4rem 0 2.5rem;
+      position: relative;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.2rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .kicker::before {
+      content: "";
+      width: 2.4rem;
+      height: 0.72rem;
+      background: var(--lime);
+      border: 1px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: var(--display);
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: 1.08;
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 10.8ch;
+      font-size: clamp(3.6rem, 9vw, 8.6rem);
+    }
+
+    .subtitle {
+      max-width: 46rem;
+      margin: 1.4rem 0 0;
+      font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+      color: #34372f;
+    }
+
+    .hero-note {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.8rem;
+      margin-top: 2rem;
+    }
+
+    .note-cell {
+      border-top: 2px solid var(--ink);
+      padding-top: 0.7rem;
+      min-width: 0;
+    }
+
+    .note-cell strong {
+      display: block;
+      font-family: var(--mono);
+      font-size: clamp(1.2rem, 2.4vw, 1.8rem);
+      line-height: 1;
+    }
+
+    .note-cell span {
+      display: block;
+      margin-top: 0.35rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .meter-board {
+      align-self: stretch;
+      display: grid;
+      align-content: center;
+      gap: 1.1rem;
+      padding: clamp(1rem, 2vw, 1.4rem);
+      background: var(--panel);
+      border: 2px solid var(--ink);
+      border-radius: 8px;
+      box-shadow: 12px 12px 0 var(--ink);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .meter-board::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(135deg, rgba(201, 242, 75, 0.34) 0 1px, transparent 1px 12px),
+        linear-gradient(45deg, rgba(240, 91, 69, 0.16) 0 1px, transparent 1px 18px);
+      pointer-events: none;
+    }
+
+    .meter-board > * {
+      position: relative;
+    }
+
+    .big-number {
+      font-family: var(--mono);
+      font-size: clamp(3.2rem, 7vw, 6.5rem);
+      line-height: 0.88;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .big-number span {
+      display: block;
+      color: var(--coral);
+    }
+
+    .hero-chart {
+      display: grid;
+      gap: 0.72rem;
+      margin-top: 1rem;
+    }
+
+    .mini-row {
+      display: grid;
+      grid-template-columns: 4.6rem 1fr 4.8rem;
+      gap: 0.55rem;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+
+    .track {
+      height: 0.85rem;
+      background: #ebefe5;
+      border: 1px solid var(--ink);
+      overflow: hidden;
+    }
+
+    .fill {
+      display: block;
+      width: var(--w);
+      height: 100%;
+      background: var(--c, var(--lime));
+    }
+
+    .toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      padding: 1rem 0 3rem;
+    }
+
+    .toc a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2.4rem;
+      padding: 0.45rem 0.72rem;
+      border: 1px solid var(--ink);
+      background: #fff;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      text-decoration: none;
+      box-shadow: 3px 3px 0 rgba(22, 22, 22, 0.9);
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .toc a:hover {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 rgba(22, 22, 22, 0.9);
+    }
+
+    .article-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 2.4rem;
+      align-items: start;
+    }
+
+    article {
+      min-width: 0;
+    }
+
+    .side-rail {
+      position: sticky;
+      top: 1rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .rail-card {
+      background: var(--panel);
+      border: 1px solid var(--ink);
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 6px 6px 0 rgba(22, 22, 22, 0.86);
+    }
+
+    .rail-card h3 {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .rail-card p,
+    .rail-card li {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .rail-card ul {
+      margin: 0;
+      padding-left: 1.1rem;
+    }
+
+    .section {
+      margin: 0 0 2rem;
+      padding: clamp(1.2rem, 3vw, 2rem);
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+    }
+
+    .section-header {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1rem;
+      align-items: start;
+      margin-bottom: 1.15rem;
+    }
+
+    .num {
+      width: 2.7rem;
+      height: 2.7rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--ink);
+      background: var(--lime);
+      font-family: var(--mono);
+      font-weight: 800;
+      box-shadow: 4px 4px 0 var(--ink);
+      flex: 0 0 auto;
+    }
+
+    h2 {
+      font-size: clamp(1.8rem, 4vw, 3rem);
+    }
+
+    .lead {
+      margin-top: 0.8rem;
+      color: #30352c;
+      font-size: 1.06rem;
+    }
+
+    .callout {
+      margin: 1.25rem 0;
+      padding: 1rem 1.1rem;
+      border-left: 0.45rem solid var(--coral);
+      background: #fff4f0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .callout.teal {
+      border-left-color: var(--teal);
+      background: #edfafa;
+    }
+
+    .callout.lime {
+      border-left-color: var(--lime-deep);
+      background: #f3fbe0;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .logic-card {
+      padding: 1rem;
+      background: #fff;
+      border: 1px solid var(--ink);
+      border-radius: 8px;
+      min-width: 0;
+    }
+
+    .logic-card h3 {
+      font-family: var(--body);
+      font-size: 1rem;
+      line-height: 1.35;
+      margin-bottom: 0.55rem;
+    }
+
+    .logic-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .stack-figure {
+      margin: 1.4rem 0 0;
+      background: #161616;
+      color: #fff;
+      border-radius: 8px;
+      padding: 1rem;
+      overflow: hidden;
+    }
+
+    .stack-figure svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 0.9rem;
+      margin-top: 1.2rem;
+    }
+
+    .round {
+      display: grid;
+      grid-template-columns: 8rem 1fr 5.6rem;
+      gap: 0.8rem;
+      align-items: center;
+      padding: 0.78rem;
+      background: #fff;
+      border: 1px solid var(--ink);
+      border-radius: 8px;
+    }
+
+    .round-label {
+      min-width: 0;
+    }
+
+    .round-label strong {
+      display: block;
+      font-family: var(--mono);
+      line-height: 1.2;
+    }
+
+    .round-label span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
+      margin-top: 0.24rem;
+    }
+
+    .round .track {
+      height: 1.2rem;
+    }
+
+    .round-value {
+      text-align: right;
+      font-family: var(--mono);
+      font-weight: 800;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background: #fff;
+      border: 1px solid var(--ink);
+      border-radius: 8px;
+      overflow: hidden;
+      display: table;
+    }
+
+    th,
+    td {
+      padding: 0.78rem 0.72rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.94rem;
+    }
+
+    th {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      background: #eef3e7;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .price-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .price {
+      border: 1px solid var(--ink);
+      background: #fff;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .price b {
+      display: block;
+      font-family: var(--mono);
+      font-size: clamp(1.5rem, 3vw, 2.4rem);
+      line-height: 1;
+    }
+
+    .price span {
+      display: block;
+      margin-top: 0.45rem;
+      color: var(--muted);
+    }
+
+    .formula {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      padding: 1rem;
+      border: 1px dashed var(--ink);
+      background: #fbfff0;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    .checklist {
+      counter-reset: steps;
+      display: grid;
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+
+    .check-item {
+      counter-increment: steps;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.8rem;
+      align-items: start;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.9rem;
+    }
+
+    .check-item::before {
+      content: counter(steps);
+      width: 1.85rem;
+      height: 1.85rem;
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-weight: 800;
+      background: var(--ink);
+      color: #fff;
+      border-radius: 50%;
+    }
+
+    .check-item strong {
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+
+    .check-item span {
+      color: var(--muted);
+    }
+
+    .terminal-shot {
+      margin: 1rem 0 0;
+      padding: 1.05rem 1.15rem;
+      background: #282e37;
+      color: #ffd06d;
+      border: 1px solid #202630;
+      border-radius: 8px;
+      box-shadow: 8px 8px 0 rgba(22, 22, 22, 0.82);
+      font-family: var(--mono);
+      font-size: clamp(0.82rem, 1.35vw, 1.08rem);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .terminal-shot .dot {
+      color: #ffd06d;
+      font-weight: 800;
+      margin-right: 0.35rem;
+    }
+
+    .shot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .shot-card {
+      margin: 0;
+      min-width: 0;
+    }
+
+    .shot-card figcaption {
+      margin: 0 0 0.55rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .cache-log-shot {
+      display: grid;
+      gap: 0.72rem;
+      margin: 1rem 0 1.2rem;
+      padding: 1rem;
+      background: #fff;
+      border: 1.5px solid var(--ink);
+      border-radius: 8px;
+      box-shadow: 6px 6px 0 rgba(22, 22, 22, 0.82);
+      font-family: var(--mono);
+      overflow: hidden;
+    }
+
+    .cache-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.62rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cache-row:last-child {
+      border-bottom: 0;
+    }
+
+    .success-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.5rem;
+      padding: 0.1rem 0.45rem;
+      background: #dff7e8;
+      color: #0c8f5a;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .log-main {
+      min-width: 0;
+      color: #1d252c;
+      font-size: 0.84rem;
+      overflow-wrap: anywhere;
+    }
+
+    .log-meta {
+      color: var(--muted);
+      display: block;
+      margin-top: 0.24rem;
+      font-size: 0.78rem;
+    }
+
+    .time-box,
+    .usage-box {
+      border: 3px solid var(--coral);
+      border-radius: 2px;
+      padding: 0.35rem 0.5rem;
+      background: #fffafa;
+      color: #17202a;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    .usage-box strong {
+      color: #d86a00;
+    }
+
+    .cache-gap {
+      justify-self: center;
+      padding: 0.2rem 0.55rem;
+      background: var(--lime);
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+
+    .references {
+      margin: 2.5rem 0 4rem;
+      padding: 1.2rem;
+      border-top: 2px solid var(--ink);
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .references h2 {
+      font-family: var(--mono);
+      font-size: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .article-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .side-rail {
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100% - 20px, 1180px);
+      }
+
+      .hero {
+        min-height: auto;
+        padding-top: 2.2rem;
+      }
+
+      .meter-board {
+        box-shadow: 7px 7px 0 var(--ink);
+      }
+
+      .hero-note,
+      .grid-two,
+      .price-box,
+      .side-rail,
+      .shot-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 1rem;
+      }
+
+      .section-header {
+        grid-template-columns: 1fr;
+      }
+
+      .round {
+        grid-template-columns: 1fr;
+        gap: 0.55rem;
+      }
+
+      .round-value {
+        text-align: left;
+      }
+
+      .cache-row {
+        grid-template-columns: 1fr;
+        gap: 0.45rem;
+      }
+
+      .time-box,
+      .usage-box {
+        white-space: normal;
+      }
+
+      table,
+      thead,
+      tbody,
+      th,
+      td,
+      tr {
+        display: block;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tr {
+        border-bottom: 1px solid var(--line);
+        padding: 0.55rem 0;
+      }
+
+      td {
+        border: 0;
+        padding: 0.42rem 0.72rem;
+      }
+
+      td::before {
+        content: attr(data-label);
+        display: block;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero" id="top">
+      <div>
+        <div class="kicker">Token Leak Report · Claude Code</div>
+        <h1>把冷启动的账算清楚</h1>
+        <p class="subtitle">
+          这不是一篇“少问几句就省 token”的鸡汤，而是一份从原始请求拆账、逐项关掉常驻上下文、再把经验固化成项目级体检工具的 Claude Code 优化记录。
+        </p>
+        <div class="hero-note" aria-label="核心结果">
+          <div class="note-cell">
+            <strong>82.6K</strong>
+            <span>原始单次简单请求 token</span>
+          </div>
+          <div class="note-cell">
+            <strong>26.6K</strong>
+            <span>清理后单次简单请求 token</span>
+          </div>
+          <div class="note-cell">
+            <strong>67.74%</strong>
+            <span>按本文计价基准估算的成本下降</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="meter-board" aria-label="优化结果概览">
+        <div>
+          <div class="big-number">82.6K <span>26.6K</span></div>
+          <p class="lead">真正的大头不是你那 6 个 input token，而是冷启动时写入缓存的那一整包系统上下文。</p>
+        </div>
+        <div class="hero-chart">
+          <div class="mini-row">
+            <span>原始</span>
+            <span class="track"><span class="fill" style="--w: 100%; --c: var(--coral);"></span></span>
+            <strong>82.6K</strong>
+          </div>
+          <div class="mini-row">
+            <span>CLAUDE</span>
+            <span class="track"><span class="fill" style="--w: 68.4%; --c: var(--gold);"></span></span>
+            <strong>56.5K</strong>
+          </div>
+          <div class="mini-row">
+            <span>Agent</span>
+            <span class="track"><span class="fill" style="--w: 50.9%; --c: var(--teal);"></span></span>
+            <strong>42.0K</strong>
+          </div>
+          <div class="mini-row">
+            <span>Tools</span>
+            <span class="track"><span class="fill" style="--w: 32.2%; --c: var(--lime-deep);"></span></span>
+            <strong>26.6K</strong>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <nav class="toc" aria-label="文章目录">
+      <a href="#background">背景</a>
+      <a href="#diagnosis">先确定病因</a>
+      <a href="#sources">冷启动组成</a>
+      <a href="#rounds">五轮优化</a>
+      <a href="#cost">成本账</a>
+      <a href="#workflow">可复用流程</a>
+      <a href="#future">工具化落地</a>
+    </nav>
+
+    <div class="article-shell">
+      <article>
+        <section class="section" id="background">
+          <div class="section-header">
+            <span class="num">01</span>
+            <div>
+              <h2>背景：额度不是突然没的</h2>
+              <p class="lead">
+                之前每次用 Claude Code 都觉得 token 消耗贼快，但也只是隐约觉得贵。账号额度用得快时，先靠换国产模型顶一顶，能撑就撑。直到最近并行项目变多，同一个账号要同时承载更多冷启动、更多插件、更多 agent，问题才从“有点肉疼”升级成“必须查账”。
+              </p>
+            </div>
+          </div>
+          <p>
+            这类问题很容易误判成模型本身太贵，或者自己 prompt 写太长。但这次的原始请求里，用户输入只有 6 个 token，输出也只有 14 个 token，真正夸张的是 <code>cache write 82619</code>。也就是说，一次几乎没有内容的请求，花钱的大头依然在冷启动上下文。
+          </p>
+          <div class="callout">
+            <strong>核心判断：</strong>先不要急着换模型。先看 Claude Code 在首轮到底塞了什么，再决定该删 CLAUDE.md、插件、skills、agents、memory，还是工具 schema。
+          </div>
+        </section>
+
+        <section class="section" id="diagnosis">
+          <div class="section-header">
+            <span class="num">02</span>
+            <div>
+              <h2>先确定病因：看原始请求，而不是看体感</h2>
+              <p class="lead">
+                优化前先拿一条最小请求做基线。可以用你自己的 <code>cc env</code> 或导出脚本观察 Claude Code 原始 request / response，也可以从本地 transcript 和代理日志里对齐 usage 字段。
+              </p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>阶段</th>
+                <th>模型与路径</th>
+                <th>Usage</th>
+                <th>结论</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="阶段">原始基线</td>
+                <td data-label="模型与路径"><code>claude-opus-4-7</code><br />POST <code>/v1/messages?beta=true</code></td>
+                <td data-label="Usage">input 6, output 14, cache write 82619, total 82639</td>
+                <td data-label="结论">首轮缓存写入是绝对大头，用户 prompt 不是主因。</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="grid-two">
+            <div class="logic-card">
+              <h3>看 total 只能知道贵</h3>
+              <p>它能告诉你这轮消耗高，但不能告诉你是 CLAUDE.md、plugin、skill、agent、memory 还是 tools 在吃。</p>
+            </div>
+            <div class="logic-card">
+              <h3>看 cache write 才能定位冷启动</h3>
+              <p>简单请求却有巨大的 cache write，通常意味着常驻系统上下文太重，优化空间也主要在这里。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="sources">
+          <div class="section-header">
+            <span class="num">03</span>
+            <div>
+              <h2>冷启动 token 从哪里来</h2>
+              <p class="lead">
+                可以把 Claude Code 的首轮上下文理解成一张“启动菜单”。菜单越厚，哪怕你只点一杯水，也要先把整本菜单塞进模型上下文。
+              </p>
+            </div>
+          </div>
+          <div class="stack-figure" aria-label="冷启动上下文组成图">
+            <svg viewBox="0 0 920 310" role="img" aria-labelledby="stack-title stack-desc">
+              <title id="stack-title">首轮冷启动上下文组成</title>
+              <desc id="stack-desc">CLAUDE.md、插件、skills、agents、工具 schema、auto memory 共同构成首轮 cache write。</desc>
+              <rect x="0" y="0" width="920" height="310" fill="#161616" />
+              <g font-family="SFMono-Regular, Menlo, monospace" font-size="18" fill="#f8faf6">
+                <text x="34" y="46">first turn cache write</text>
+                <text x="34" y="76" fill="#aeb8a5">what the model sees before your tiny prompt</text>
+              </g>
+              <g transform="translate(34,118)">
+                <rect x="0" y="0" width="138" height="128" rx="7" fill="#c9f24b" stroke="#f8faf6" />
+                <rect x="150" y="18" width="158" height="110" rx="7" fill="#f05b45" stroke="#f8faf6" />
+                <rect x="320" y="36" width="132" height="92" rx="7" fill="#0aa6a6" stroke="#f8faf6" />
+                <rect x="464" y="8" width="162" height="120" rx="7" fill="#7057c8" stroke="#f8faf6" />
+                <rect x="638" y="30" width="128" height="98" rx="7" fill="#d7a326" stroke="#f8faf6" />
+                <rect x="778" y="58" width="74" height="70" rx="7" fill="#ffffff" stroke="#f8faf6" />
+                <g font-family="SFMono-Regular, Menlo, monospace" font-size="15" fill="#161616" font-weight="700">
+                  <text x="18" y="40">CLAUDE.md</text>
+                  <text x="18" y="66">global</text>
+                  <text x="18" y="92">project</text>
+                  <text x="168" y="58">plugins</text>
+                  <text x="168" y="84">skills</text>
+                  <text x="168" y="110">commands</text>
+                  <text x="342" y="80">agents</text>
+                  <text x="486" y="60" fill="#fff">tool</text>
+                  <text x="486" y="86" fill="#fff">schemas</text>
+                  <text x="660" y="78">auto</text>
+                  <text x="660" y="104">memory</text>
+                  <text x="792" y="96">you</text>
+                </g>
+              </g>
+              <path d="M38 274 C210 256 330 292 486 268 C650 242 760 258 886 230" fill="none" stroke="#c9f24b" stroke-width="5" />
+              <text x="34" y="298" font-family="SFMono-Regular, Menlo, monospace" font-size="14" fill="#d7dacd">优化顺序：先动常驻大块，再动实验功能，最后精细裁剪工具</text>
+            </svg>
+          </div>
+          <div class="callout teal">
+            <strong>经验拆法：</strong>优先看全局和项目 <code>CLAUDE.md</code>，再看全局插件 / skills / commands，随后查全局和项目 agent，最后看 agent team、auto memory、tools 这类开关。
+          </div>
+        </section>
+
+        <section class="section" id="rounds">
+          <div class="section-header">
+            <span class="num">04</span>
+            <div>
+              <h2>五轮优化：从 82.6K 压到 26.6K</h2>
+              <p class="lead">
+                下面这组数据很有价值，因为它不是“理论上能省”，而是每清理一类组件之后重新打一条简单请求得到的实测结果。
+              </p>
+            </div>
+          </div>
+
+          <div class="timeline">
+            <div class="round">
+              <div class="round-label"><strong>原始</strong><span>全局堆了很多 skill / agent / 插件</span></div>
+              <span class="track"><span class="fill" style="--w: 100%; --c: var(--coral);"></span></span>
+              <div class="round-value">82,639</div>
+            </div>
+            <div class="round">
+              <div class="round-label"><strong>第一轮</strong><span>清理 CLAUDE.md、插件和 skills</span></div>
+              <span class="track"><span class="fill" style="--w: 68.43%; --c: var(--gold);"></span></span>
+              <div class="round-value">56,545</div>
+            </div>
+            <div class="round">
+              <div class="round-label"><strong>第二轮</strong><span>清理全局和项目 agent</span></div>
+              <span class="track"><span class="fill" style="--w: 50.87%; --c: var(--teal);"></span></span>
+              <div class="round-value">42,042</div>
+            </div>
+            <div class="round">
+              <div class="round-label"><strong>第三轮</strong><span>禁用 agent team，仅在需要项目开启</span></div>
+              <span class="track"><span class="fill" style="--w: 44.69%; --c: var(--violet);"></span></span>
+              <div class="round-value">36,930</div>
+            </div>
+            <div class="round">
+              <div class="round-label"><strong>第四轮</strong><span>禁用 auto memory，避免默认常驻</span></div>
+              <span class="track"><span class="fill" style="--w: 39.99%; --c: var(--lime-deep);"></span></span>
+              <div class="round-value">33,055</div>
+            </div>
+            <div class="round">
+              <div class="round-label"><strong>第五轮</strong><span>禁用不常用 tools</span></div>
+              <span class="track"><span class="fill" style="--w: 32.20%; --c: var(--lime);"></span></span>
+              <div class="round-value">26,611</div>
+            </div>
+          </div>
+
+          <h3 style="margin-top:1.6rem;">第一刀：CLAUDE.md、插件和 skills</h3>
+          <p>
+            <code>CLAUDE.md</code> 最适合用类似 caveman 的原则重写：只保留会改变模型行为的硬约束，删除历史解释、长案例、重复规则和已经被项目工具固化的流程。全局 <code>CLAUDE.md</code> 只放跨项目稳定规则，项目 <code>CLAUDE.md</code> 只放这个仓库必须知道的事实。
+          </p>
+          <pre><code>find -L ~/.claude -maxdepth 6 \( -name "SKILL.md" -o -name "settings.json" -o -name "settings.local.json" \) -print 2&gt;/dev/null | sort
+find -L . -maxdepth 8 \( -name "SKILL.md" -o -name "settings.json" -o -name "settings.local.json" \) -print 2&gt;/dev/null | sort</code></pre>
+          <p>
+            清理顺序建议插件优先，因为一个插件往往带多个 skill、command 和 agent。全局只是“常用工具箱”，不是“所有玩具展柜”。只服务某个项目的 skill，迁到项目级；低频但偶尔要显式调用的 skill，可以考虑加 <code>disable-model-invocation: true</code>，让它不再默认进入首轮可见入口。
+          </p>
+          <p>
+            如果要半自动处理，建议只做“列清单 + 逐项确认”，不要脚本直接 <code>rm</code>。每一项都基于当前项目判断：保留、迁移到项目级，或者先移动到 disabled 目录观察一段时间。
+          </p>
+          <pre><code>disabled_dir=".claude-disabled/$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$disabled_dir"
+
+{
+  find -L ~/.claude -maxdepth 6 -name "SKILL.md" -print 2&gt;/dev/null
+  find -L . -maxdepth 8 -name "SKILL.md" -print 2&gt;/dev/null
+} | sort | while IFS= read -r skill_file; do
+  skill_dir="$(dirname "$skill_file")"
+  printf "\n%s\n[d]isable [s]kip [q]uit? " "$skill_dir"
+  read -r answer
+  case "$answer" in
+    d) mv "$skill_dir" "$disabled_dir/${skill_dir//\//__}" ;;
+    q) break ;;
+    *) ;;
+  esac
+done</code></pre>
+
+          <h3 style="margin-top:1.6rem;">第二刀：agent 不要全局滥装</h3>
+          <p>
+            之前为了测试 <a href="https://github.com/xymelon/spec-kit-agent-assign" target="_blank" rel="noreferrer">spec-kit-agent-assign</a>，又安装了 <a href="https://github.com/msitarzewski/agency-agents" target="_blank" rel="noreferrer">agency-agents</a> 这类全局 agent。它们在特定场景有用，但如果全局常驻，就会把每个项目都变成 agent 展示厅。
+          </p>
+          <pre><code>claude agents
+find -L ~/.claude -maxdepth 8 -path "*/agents/*.md" -print 2&gt;/dev/null | sort
+find -L . -maxdepth 8 -path "*/agents/*.md" -print 2&gt;/dev/null | sort</code></pre>
+          <p>
+            这里要特别注意“不能遗漏全局目录”。如果某个 agent 只给一个项目用，就迁到项目 <code>.claude/agents/</code>；如果只是实验遗留，就删除或先移到 disabled 目录。清完之后，token 从 56.5K 继续降到 42.0K。
+          </p>
+
+          <h3 style="margin-top:1.6rem;">第三刀和第四刀：agent team、auto memory</h3>
+          <p>
+            实验性的 agent team 和 auto memory 不应该因为“也许以后会用”而全局开启。明确当前项目不用，就关掉；某个项目确实要用，就只在那个项目启用。这样既能保留能力，又不让每个冷启动为低频能力买单。
+          </p>
+
+          <h3 style="margin-top:1.6rem;">第五刀：裁剪 tools schema</h3>
+          <p>
+            官方 CLI 文档里，<code>--disallowedTools</code> 的关键点不是“少弹权限提示”，而是这些工具会从模型上下文里移除，无法使用。这个区别很重要：<code>--allowedTools</code> 主要解决免确认，<code>--tools</code> 和 <code>--disallowedTools</code> 才更适合做上下文裁剪。
+          </p>
+          <pre><code>alias claude='claude --disallowedTools "CronCreate" "CronDelete" "CronList" "ScheduleWakeup" "EnterWorktree" "ExitWorktree" "NotebookEdit" "TaskOutput" "TaskStop"'</code></pre>
+          <p>
+            如果你确定日常不用 <code>Agent</code>、<code>AskUserQuestion</code>、Plan Mode 一类能力，可以再准备一个更瘦的 alias，而不是直接覆盖所有场景。
+          </p>
+          <pre><code>alias claude-slim='claude --disallowedTools "CronCreate" "CronDelete" "CronList" "ScheduleWakeup" "EnterWorktree" "ExitWorktree" "NotebookEdit" "TaskOutput" "TaskStop" "Agent" "AskUserQuestion" "EnterPlanMode" "ExitPlanMode"'</code></pre>
+          <div class="callout lime">
+            对脚本化一次性任务，还可以关注官方 <code>--bare</code>：它会跳过 hooks、skills、plugins、MCP、auto memory 和 CLAUDE.md 的自动发现，让 headless 调用更轻。但这更适合自动化，不适合直接替代日常交互会话。
+          </div>
+
+          <h3 style="margin-top:1.6rem;">第六个注意点：别忽略 5 分钟缓存有效期</h3>
+          <p>
+            还有一个很容易被忽略的消耗点：prompt cache 默认只有 5 分钟有效期。两次对话间隔超过 5 分钟后，下一轮很可能不再是 <code>cache read</code>，而是重新 <code>cache write</code>。如果这时会话已经很长，就等于把一大段上下文重新写入缓存。
+          </p>
+          <div class="cache-log-shot" aria-label="超过 5 分钟后缓存重新写入示意">
+            <div class="cache-row">
+              <span class="success-badge">SUCCESS</span>
+              <div class="log-main">
+                <strong>第一次对话</strong> · “你好！有什么需要帮忙的吗?”
+                <span class="log-meta">youdao-cc · claude-sonnet-4-6</span>
+              </div>
+              <span class="time-box">2026/5/9 09:16:21</span>
+              <span class="usage-box">I3 / O45 <strong>CW 30.6K</strong> / CR0 · 5m</span>
+            </div>
+            <span class="cache-gap">间隔超过 5 分钟</span>
+            <div class="cache-row">
+              <span class="success-badge">SUCCESS</span>
+              <div class="log-main">
+                <strong>第二次对话</strong> · “你好！有什么我可以帮你的吗?”
+                <span class="log-meta">youdao-cc · claude-sonnet-4-6</span>
+              </div>
+              <span class="time-box">2026/5/9 09:23:05</span>
+              <span class="usage-box">I3 / O18 <strong>CW 30.6K</strong> / CR0 · 5m</span>
+            </div>
+          </div>
+          <p>
+            所以离开超过 5 分钟再回来，尤其是长对话场景，最好先新开会话，或者先运行 <code>/compact</code> 压缩会话。不是每次都必须这么做，但当你看到 <code>CR 0</code> 且 <code>CW</code> 又重新变大时，就说明这轮又在付“重建上下文”的钱。
+          </p>
+        </section>
+
+        <section class="section" id="cost">
+          <div class="section-header">
+            <span class="num">05</span>
+            <div>
+              <h2>成本账：最后便宜了接近 68%</h2>
+              <p class="lead">
+                下面按你给出的 Opus 4.7 计价基准计算：普通输入 <code>$5 / 1M</code>，输出 <code>$25 / 1M</code>，5 分钟缓存写入 <code>$6.25 / 1M</code>。不同模型和不同时段价格可能变化，实际结算以当时账单为准。
+              </p>
+            </div>
+          </div>
+          <div class="formula">
+            原始费用 = 6 × 5 / 1M + 14 × 25 / 1M + 82619 × 6.25 / 1M = $0.516749<br />
+            优化后费用 = 6 × 5 / 1M + 20 × 25 / 1M + 26585 × 6.25 / 1M = $0.166686
+          </div>
+          <div class="price-box">
+            <div class="price">
+              <b>$0.5167</b>
+              <span>原始单次请求估算费用</span>
+            </div>
+            <div class="price">
+              <b>$0.1667</b>
+              <span>第五轮后单次请求估算费用</span>
+            </div>
+            <div class="price">
+              <b>$0.3501</b>
+              <span>单次节约，比例 67.74%</span>
+            </div>
+          </div>
+          <p>
+            这次能省这么多，并不说明每个人都有同等空间。它更像一个反面教材：我把 skills 和 agents 全局安装、长期不卸载，导致每个项目冷启动都背着一整套历史包袱。优化的本质，是把“全局默认加载”改回“按项目、按场景、按需启用”。
+          </p>
+        </section>
+
+        <section class="section" id="workflow">
+          <div class="section-header">
+            <span class="num">06</span>
+            <div>
+              <h2>可复用流程：以后别靠记忆清理</h2>
+              <p class="lead">
+                手工优化最怕两件事：第一次很爽，第二次忘了；现在省了很多，过两周又装回一堆。建议把这套流程变成固定体检。
+              </p>
+            </div>
+          </div>
+          <div class="checklist">
+            <div class="check-item">
+              <div><strong>先测最小请求基线</strong><span>记录 input、output、cache write、cache read、total，尤其关注冷启动的 cache write。</span></div>
+            </div>
+            <div class="check-item">
+              <div><strong>压缩 CLAUDE.md</strong><span>全局只放跨项目规则，项目只放仓库事实；长解释和示例迁到文档，不常驻。</span></div>
+            </div>
+            <div class="check-item">
+              <div><strong>插件优先清理</strong><span>先看插件，再看插件带出来的 skill、command、agent；低频能力不要全局启用。</span></div>
+            </div>
+            <div class="check-item">
+              <div><strong>agent 分层管理</strong><span>全局只留高频通用 agent，项目特化 agent 放项目目录，实验遗留及时移走。</span></div>
+            </div>
+            <div class="check-item">
+              <div><strong>关闭不需要的实验能力</strong><span>agent team、auto memory 等能力按项目开启，不用就关。</span></div>
+            </div>
+            <div class="check-item">
+              <div><strong>准备多档 alias</strong><span>默认 alias 保留常用能力，slim alias 裁剪冷门 tools，脚本任务再考虑 <code>--bare</code>。</span></div>
+            </div>
+            <div class="check-item">
+              <div><strong>盯住缓存有效期</strong><span>离开超过 5 分钟再回来，长会话优先新开或 <code>/compact</code>，避免整段上下文重新 cache write。</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="future">
+          <div class="section-header">
+            <span class="num">07</span>
+            <div>
+              <h2>工具化落地：project-token-insights</h2>
+              <p class="lead">
+                这里不是一个“以后再做”的规划，而是这次排查真正值得收束的地方：最开始靠自己翻 usage、看 settings、找 CLAUDE.md、清 plugins / skills / agents；最后把这套手工经验沉淀成了 <code>project-token-insights</code>，让项目可以自动查、自动出报告、自动提醒。
+              </p>
+            </div>
+          </div>
+          <div class="callout lime">
+            <strong>升华点：</strong>这次优化解决的是一个账号的消耗问题；工具化之后，解决的是每个项目都能持续自检的问题。从“我知道该怎么排查”，变成“项目自己能给出排查报告，并在高成本动作发生前提醒我”。
+          </div>
+          <div class="grid-two">
+            <div class="logic-card">
+              <h3>从人工翻文件到自动扫描</h3>
+              <p>以前要自己查全局 / 项目 <code>CLAUDE.md</code>、插件 manifest、skill metadata、agent frontmatter、auto memory 和工具 schema；现在脚本会自动重建首轮 token 组成。</p>
+            </div>
+            <div class="logic-card">
+              <h3>从体感判断到 JSONL 校准</h3>
+              <p>读取当前项目对应 transcript，用冷启动首轮 <code>cache_creation_input_tokens</code> 的 p50 / p75 对照估算结果，避免只凭体感判断。</p>
+            </div>
+            <div class="logic-card">
+              <h3>从口头经验到中文报告</h3>
+              <p>直接输出中文优化报告，按 2.1 到 2.6 列出大头组件、未使用 agent、agent team、auto memory、tools、重复规则和对应操作。</p>
+            </div>
+            <div class="logic-card">
+              <h3>从事后复盘到 hooks 监控</h3>
+              <p>hook 已经可以在首轮超过预算，或 5 分钟 prompt cache 可能过期时，在下一次提交前提醒，避免默默重新烧一轮。</p>
+            </div>
+          </div>
+
+          <h3 style="margin-top:1.6rem;">安装：从 GitHub 拉到 Claude Code skills</h3>
+          <p>
+            工具已经上传到 <a href="https://github.com/xymelon/skills/" target="_blank" rel="noreferrer">github.com/xymelon/skills</a>。如果还没安装，可以把仓库拉到本地 skills 目录，再给 <code>project-token-insights</code> 建一个入口。
+          </p>
+          <pre><code>mkdir -p ~/.claude/skills
+
+if [ ! -d ~/.claude/skills/xymelon-skills ]; then
+  git clone --depth 1 https://github.com/xymelon/skills.git ~/.claude/skills/xymelon-skills
+else
+  git -C ~/.claude/skills/xymelon-skills pull --ff-only
+fi
+
+if [ ! -e ~/.claude/skills/project-token-insights ]; then
+  ln -s ~/.claude/skills/xymelon-skills/project-token-insights ~/.claude/skills/project-token-insights
+fi</code></pre>
+
+          <h3 style="margin-top:1.6rem;">检查：先跑一次项目体检</h3>
+          <p>
+            安装后可以直接在 Claude Code 里调用 <code>/project-token-insights</code>。如果只是想先验证脚本，也可以在项目根目录手动跑下面两步：第一步生成首轮组件基线，第二步生成中文优化报告。
+          </p>
+          <pre><code>python3 ~/.claude/skills/project-token-insights/scripts/first_turn_breakdown.py --pretty
+python3 ~/.claude/skills/project-token-insights/scripts/optimization_report.py</code></pre>
+          <p>
+            报告会落到当前项目的 <code>.project-token-insights/optimization-report.md</code>，里面会列出大头组件、置信度、预计节省和建议操作。这样下次遇到 token 异常，不必重新凭记忆翻目录，而是先让工具给出一份可对照的体检结果。
+          </p>
+
+          <h3 style="margin-top:1.6rem;">安装 hooks：把检查变成提醒</h3>
+          <p>
+            hooks 是这套工具真正从“报告”走向“监控”的部分。安装前先看状态；确认后安装到当前项目。它只写当前项目的 <code>.claude/settings.local.json</code> 和 <code>.project-token-insights/hooks/</code>，安装后重启 Claude Code 让 hook 生效。
+          </p>
+          <pre><code>python3 ~/.claude/skills/project-token-insights/scripts/install_hooks.py --status
+python3 ~/.claude/skills/project-token-insights/scripts/install_hooks.py
+
+# 如果只想先盯首轮超限
+python3 ~/.claude/skills/project-token-insights/scripts/install_hooks.py --only first-turn</code></pre>
+
+          <div class="shot-grid">
+            <figure class="shot-card">
+              <figcaption>首轮超限 hook：发现首轮组件超过预算时，先 block 一次并给出优化方向。</figcaption>
+              <div class="terminal-shot"><span class="dot">●</span>UserPromptSubmit operation blocked by hook:
+[project-token-insights] 首轮 token 超阈预警:
+  - Agent 定义汇总: 约 10832 tok (阈值 3000)
+  优化方向:
+  - 2.2/2.3 清理 Agent: 删除未使用 agent，并保持实验 Agent teams 关闭。
+运行 `/project-token-insights` 查看首轮组件基线与优化报告。
+再次发送原 prompt 继续。
+
+Original prompt: hi</div>
+            </figure>
+            <figure class="shot-card">
+              <figcaption>缓存过期 hook：发现 prompt cache 已过期时，提示先 compact 或重新发送继续。</figcaption>
+              <div class="terminal-shot"><span class="dot">●</span>UserPromptSubmit operation blocked by hook:
+缓存提醒: prompt cache 刚刚过期 (空闲 5.8 分钟)。本轮: 完整上下文会从头重建。
+如想降低成本，可先运行 /compact; 也可以再次发送原 prompt 继续。
+
+Original prompt: hi</div>
+            </figure>
+          </div>
+
+          <p>
+            最后的结论就更清楚了：优化 Claude Code token，不只是把能力越关越少，而是把默认加载从“我可能会用”收敛成“这个项目马上会用”，再把这套判断固化成工具和 hooks。全局越克制，项目越清晰，冷启动就越轻；工具越早提醒，下一次踩坑就越少。
+          </p>
+        </section>
+      </article>
+
+      <aside class="side-rail" aria-label="速记">
+        <div class="rail-card">
+          <h3>Diagnosis</h3>
+          <p>如果 input 很小但 cache write 很大，先查首轮常驻上下文。</p>
+        </div>
+        <div class="rail-card">
+          <h3>Priority</h3>
+          <ul>
+            <li>CLAUDE.md</li>
+            <li>Plugins / Skills</li>
+            <li>Agents</li>
+            <li>Agent team / Memory</li>
+            <li>Tools schema</li>
+            <li>Prompt cache TTL</li>
+          </ul>
+        </div>
+        <div class="rail-card">
+          <h3>Result</h3>
+          <p>82,639 tokens 降到 26,611 tokens。按本文计价，单次节省约 $0.3501。</p>
+        </div>
+      </aside>
+    </div>
+
+    <section class="references" aria-label="参考资料">
+      <h2>参考资料</h2>
+      <p>
+        Claude Code CLI 参考：<a href="https://docs.claude.com/en/docs/claude-code/cli-reference" target="_blank" rel="noreferrer">官方 CLI flags 文档</a>。其中 <code>--disallowedTools</code>、<code>--tools</code>、<code>--bare</code> 的语义，是本文工具裁剪建议的依据。
+      </p>
+      <p>
+        Anthropic 定价说明：<a href="https://docs.anthropic.com/en/docs/about-claude/pricing" target="_blank" rel="noreferrer">官方 pricing 文档</a>。本文成本计算按用户提供的 Opus 4.7 价格基准演示，实际账单请以对应模型和账户当时价格为准。
+      </p>
+      <p>
+        工具仓库：<a href="https://github.com/xymelon/skills/" target="_blank" rel="noreferrer">xymelon/skills</a>，本文最后的 <code>project-token-insights</code> 安装和 hook 示例来自该仓库。
+      </p>
+    </section>
+  </main>
+</body>
+</html>
