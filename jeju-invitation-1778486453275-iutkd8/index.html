@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>济州山海为序 · 团队旅行邀请函</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Noto+Serif+SC:wght@300;400;600&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --sky-top:#4a90d9;
+      --sky-mid:#7ec8e3;
+      --sky-low:#b8e4f0;
+      --sky-horizon:#daf2f8;
+      --sun-glow:#fff3cd;
+      --sun-core:#ffe082;
+      --cliff-top:#8d6e4c;
+      --cliff-mid:#6b5039;
+      --cliff-shadow:#4a3525;
+      --cliff-green:#5a8a3c;
+      --water-glass:#2ee8d0;
+      --water-light:#1dd1a1;
+      --water-mid:#0abde3;
+      --water-deep:#0984e3;
+      --water-abyss:#0c3a6e;
+      --gold:#ffd700;
+      --warm-gold:#f0c040;
+      --sand:#ffeaa7;
+      --text-light:#ffffff;
+      --text-dark:#1a2a3a;
+      --text-cream:#fff8ee;
+      --text-dim:rgba(255,255,255,.55);
+      --glass:rgba(255,255,255,.18);
+      --glass-border:rgba(255,255,255,.28);
+    }
+    html{scroll-behavior:smooth}
+    body{
+      font-family:'Noto Serif SC','STSong','SimSun',serif;
+      color:var(--text-light);
+      min-height:100vh;overflow-x:hidden;
+      -webkit-font-smoothing:antialiased;
+      background:var(--water-abyss);
+    }
+
+    /* ====================================================
+       真实照片背景：济州海岸悬崖 + 玻璃海
+       ==================================================== */
+    .scene{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:hidden}
+
+    /* 主背景照片：济州岛海岸悬崖 */
+    .bg-photo{
+      position:absolute;top:0;left:0;width:100%;height:100%;
+      background-image:url('https://images.unsplash.com/photo-1558548283-49230ba2930a?ixid=M3wxMjA3fDB8MXxzZWFyY2h8M3x8amVqdSUyMGlzbGFuZCUyMGNvYXN0fGVufDB8fHx8MTc3ODQ4NTcwN3ww&ixlib=rb-4.1.0&w=1920&q=80');
+      background-size:cover;
+      background-position:center 35%;
+      background-repeat:no-repeat;
+    }
+
+    /* 玻璃海照片：底部叠加 */
+    .bg-sea-photo{
+      position:absolute;bottom:0;left:0;width:100%;height:45%;
+      background-image:url('https://images.unsplash.com/photo-1772885585340-fceb53faa60e?ixid=M3wxMjA3fDB8MXxzZWFyY2h8M3x8dHVycXVvaXNlJTIwb2NlYW4lMjBhZXJpYWwlMjBjbGVhciUyMHdhdGVyfGVufDB8fHx8MTc3ODQ4NTczMnww&ixlib=rb-4.1.0&w=1920&q=80');
+      background-size:cover;
+      background-position:center 60%;
+      background-repeat:no-repeat;
+      mask-image:linear-gradient(to bottom,transparent 0%,black 20%);
+      -webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 20%);
+    }
+
+    /* 玻璃海反光叠加层 */
+    .sea-glass{
+      position:absolute;bottom:0;left:0;width:100%;height:45%;
+      background:
+        linear-gradient(175deg,transparent 28%,rgba(255,255,255,.08) 29.5%,transparent 31%),
+        linear-gradient(178deg,transparent 42%,rgba(255,255,255,.06) 43.5%,transparent 45%),
+        linear-gradient(172deg,transparent 58%,rgba(255,255,255,.04) 59.5%,transparent 61%),
+        linear-gradient(177deg,transparent 74%,rgba(255,255,255,.03) 75.5%,transparent 77%);
+      pointer-events:none;
+    }
+
+    /* 整体色调叠加 — 保持海岛暖色氛围 */
+    .color-overlay{
+      position:absolute;top:0;left:0;width:100%;height:100%;
+      background:linear-gradient(180deg,
+        rgba(74,144,217,.15) 0%,
+        rgba(126,200,227,.08) 30%,
+        transparent 50%,
+        rgba(0,206,201,.08) 70%,
+        rgba(12,58,110,.12) 100%);
+      mix-blend-mode:overlay;
+    }
+
+    /* 底部加深 — 保证文字可读 */
+    .darken-bottom{
+      position:absolute;bottom:0;left:0;width:100%;height:30%;
+      background:linear-gradient(to top,rgba(12,58,110,.3),transparent);
+    }
+
+    /* 太阳 */
+    .sun{
+      position:absolute;top:6%;right:10%;
+      width:80px;height:80px;border-radius:50%;
+      background:radial-gradient(circle,
+        rgba(255,243,205,.6) 0%,
+        rgba(255,224,130,.3) 40%,
+        transparent 70%);
+      pointer-events:none;
+    }
+    .sun-halo{
+      position:absolute;top:calc(6% - 40px);right:calc(10% - 40px);
+      width:160px;height:160px;border-radius:50%;
+      background:radial-gradient(circle,rgba(255,243,205,.2) 0%,transparent 70%);
+      animation:sunPulse 5s ease-in-out infinite;
+    }
+    @keyframes sunPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.6}}
+
+    /* 太阳海面倒影柱 */
+    .sun-reflection{
+      position:absolute;top:45%;right:2%;width:25%;height:50%;
+      background:linear-gradient(180deg,
+        rgba(255,224,130,.1) 0%,
+        rgba(255,215,0,.05) 30%,
+        transparent 70%);
+      filter:blur(6px);
+      pointer-events:none;
+    }
+
+    /* 阳光射线 */
+    .sun-rays{
+      position:absolute;top:4%;right:4%;
+      width:140px;height:140px;
+      background:
+        conic-gradient(from 0deg,
+          transparent 0deg,rgba(255,243,205,.06) 5deg,transparent 10deg,
+          transparent 30deg,rgba(255,243,205,.04) 35deg,transparent 40deg,
+          transparent 60deg,rgba(255,243,205,.06) 65deg,transparent 70deg,
+          transparent 90deg,rgba(255,243,205,.04) 95deg,transparent 100deg,
+          transparent 120deg,rgba(255,243,205,.05) 125deg,transparent 130deg,
+          transparent 150deg,rgba(255,243,205,.04) 155deg,transparent 160deg,
+          transparent 180deg,rgba(255,243,205,.06) 185deg,transparent 190deg,
+          transparent 210deg,rgba(255,243,205,.04) 215deg,transparent 220deg,
+          transparent 240deg,rgba(255,243,205,.05) 245deg,transparent 250deg,
+          transparent 270deg,rgba(255,243,205,.04) 275deg,transparent 280deg,
+          transparent 300deg,rgba(255,243,205,.06) 305deg,transparent 310deg,
+          transparent 330deg,rgba(255,243,205,.04) 335deg,transparent 340deg,
+          transparent 360deg);
+      border-radius:50%;
+      animation:raysSpin 60s linear infinite;
+      pointer-events:none;
+    }
+    @keyframes raysSpin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+
+    /* 飞鸟 */
+    .bird{position:absolute;opacity:.35}
+    .bird::before,.bird::after{
+      content:'';position:absolute;
+      width:12px;height:3px;border-top:2px solid rgba(255,255,255,.7);
+      border-radius:50%;
+    }
+    .bird::before{transform:rotate(-20deg);left:0}
+    .bird::after{transform:rotate(20deg);left:10px}
+    .bird-1{top:12%;left:28%}
+    .bird-2{top:10%;left:33%;transform:scale(.7)}
+    .bird-3{top:16%;left:58%;transform:scale(.5)}
+
+    /* 海面光斑 */
+    .sea-sparkle{
+      position:absolute;border-radius:50%;
+      background:radial-gradient(circle,rgba(255,255,255,.45),transparent 70%);
+      animation:sparkle var(--dur) ease-in-out infinite;
+      animation-delay:var(--del);
+      pointer-events:none;
+    }
+    @keyframes sparkle{0%,100%{opacity:.1;transform:scale(1)}50%{opacity:.8;transform:scale(1.3)}}
+
+    /* ===== 纸屑 ===== */
+    .confetti-box{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;overflow:hidden}
+    .confetti{position:absolute;top:-20px;opacity:0;animation:cFall var(--dur) linear forwards;animation-delay:var(--del)}
+    .confetti.circle{border-radius:50%}
+    .confetti.bar{border-radius:2px}
+    .confetti.square{border-radius:3px}
+    .confetti.leaf{border-radius:50% 0 50% 0;transform-origin:center}
+    @keyframes cFall{
+      0%{opacity:0;transform:translateY(-20px) rotate(0deg) translateX(0)}
+      8%{opacity:1}88%{opacity:.9}
+      100%{opacity:0;transform:translateY(100vh) rotate(720deg) translateX(var(--sway))}
+    }
+
+    /* ===== 漂浮光点 ===== */
+    .lights{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:hidden}
+    .glow{position:absolute;border-radius:50%;animation:gFloat var(--dur) ease-in-out infinite;animation-delay:var(--del)}
+    @keyframes gFloat{0%,100%{transform:translate(0,0);opacity:.12}33%{transform:translate(20px,-40px);opacity:.3}66%{transform:translate(-15px,-20px);opacity:.2}}
+
+    /* ===== 通用关键帧 ===== */
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes scaleIn{from{opacity:0;transform:scale(.85) translateY(-15px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    @keyframes goldPulse{
+      0%,100%{text-shadow:0 0 15px rgba(255,215,0,.25),0 0 40px rgba(255,215,0,.08),0 2px 8px rgba(0,0,0,.3)}
+      50%{text-shadow:0 0 25px rgba(255,215,0,.45),0 0 60px rgba(255,215,0,.15),0 2px 8px rgba(0,0,0,.3)}
+    }
+    @keyframes nodePulse{0%,100%{box-shadow:0 0 6px rgba(255,215,0,.35)}50%{box-shadow:0 0 14px rgba(255,215,0,.6),0 0 24px rgba(255,215,0,.2)}}
+    @keyframes planeFly{0%{transform:translateX(-3px)}50%{transform:translateX(3px)}100%{transform:translateX(-3px)}}
+
+    /* ===== 主布局 ===== */
+    main{position:relative;z-index:2;max-width:480px;margin:0 auto;padding:46px 20px 40px}
+    @media(min-width:768px){main{max-width:720px;padding:56px 32px 48px}}
+    @media(min-width:1100px){main{max-width:960px;padding:64px 40px 56px}}
+
+    /* ===== Hero ===== */
+    .hero{text-align:center;margin-bottom:28px}
+    .hero .label{
+      font-family:'Caveat','Georgia',cursive;font-size:17px;letter-spacing:5px;
+      color:var(--sun-glow);margin-bottom:14px;
+      opacity:0;animation:fadeInUp 1s ease forwards;animation-delay:.3s;
+      text-shadow:0 1px 8px rgba(0,0,0,.35);
+    }
+    .hero h1{
+      font-family:'ZCOOL KuaiLe','STKaiti',sans-serif;
+      font-size:36px;color:var(--text-light);line-height:1.35;margin-bottom:14px;
+      opacity:0;
+      animation:scaleIn 1.4s cubic-bezier(.22,1,.36,1) forwards,goldPulse 4s ease-in-out infinite;
+      animation-delay:.6s,2.2s;
+    }
+    .hero .divider{
+      width:80px;height:1px;margin:0 auto 14px;
+      background:linear-gradient(to right,transparent,var(--gold),transparent);
+      opacity:0;animation:fadeInUp 1s ease forwards;animation-delay:1s;
+    }
+    .hero .info{opacity:0;animation:fadeInUp 1s ease forwards;animation-delay:1.2s}
+    .hero .date{font-size:17px;color:var(--text-light);letter-spacing:1px;margin-bottom:5px;text-shadow:0 1px 8px rgba(0,0,0,.4)}
+    .hero .dest{
+      font-family:'Caveat',cursive;font-size:28px;color:var(--gold);
+      font-weight:700;letter-spacing:2px;text-shadow:0 2px 10px rgba(0,0,0,.35);
+    }
+
+    /* ===== 装饰分隔 ===== */
+    .sep{display:flex;align-items:center;justify-content:center;gap:10px;margin:22px 0;opacity:0;animation:fadeInUp .8s ease forwards}
+    .sep .line{width:36px;height:1px}
+    .sep .line-l{background:linear-gradient(to right,transparent,rgba(255,215,0,.45))}
+    .sep .line-r{background:linear-gradient(to left,transparent,rgba(255,215,0,.45))}
+    .sep .dot{color:var(--gold);font-size:14px}
+
+    /* ===== 通用卡片 ===== */
+    .card{
+      border-radius:20px;padding:26px 20px;margin-bottom:16px;
+      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+      opacity:0;animation:fadeInUp .8s ease forwards;
+    }
+
+    /* 天空区卡片 — 白字深底 */
+    .card-sky{
+      background:rgba(10,30,60,.45);
+      border:1px solid rgba(255,255,255,.1);
+      box-shadow:0 4px 30px rgba(0,0,0,.15);
+    }
+    .card-sky .card-title{color:var(--gold);text-shadow:0 1px 8px rgba(0,0,0,.3)}
+    .card-sky .invite-text{color:rgba(255,248,238,.8)}
+
+    /* 悬崖区卡片 — 深底金标题 */
+    .card-cliff{
+      background:rgba(74,53,37,.6);
+      border:1px solid rgba(255,255,255,.1);
+      box-shadow:0 4px 30px rgba(0,0,0,.2);
+    }
+    .card-cliff .card-title{color:var(--gold);text-shadow:0 1px 6px rgba(0,0,0,.3)}
+    .card-cliff .flight-code{color:rgba(255,248,238,.55)}
+    .card-cliff .flight-city{color:rgba(255,248,238,.5)}
+    .card-cliff .flight-date-row{color:rgba(255,248,238,.4)}
+
+    /* 水面区卡片 — 深底白字 */
+    .card-water{
+      background:rgba(8,30,60,.7);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 4px 24px rgba(0,0,0,.2);
+    }
+    .card-water .card-title{color:var(--gold);text-shadow:0 1px 8px rgba(0,0,0,.3)}
+    .card-water .tl-name{color:rgba(255,248,238,.9)}
+    .card-water .tl-desc{color:rgba(255,248,238,.6)}
+    .card-water .day-date{color:rgba(255,248,238,.5)}
+
+    /* 浅色卡片 — 改深底 */
+    .card-light{
+      background:rgba(8,30,60,.7);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 4px 24px rgba(0,0,0,.2);
+    }
+    .card-light .card-title{color:var(--gold);text-shadow:0 1px 8px rgba(0,0,0,.3)}
+    .card-light .dress-label{color:rgba(255,248,238,.9)}
+    .card-light .dress-hint{color:rgba(255,248,238,.6)}
+    .card-light .dress-note{color:rgba(255,248,238,.65)}
+    .card-light .tip-label{color:rgba(255,248,238,.9)}
+    .card-light .tip-desc{color:rgba(255,248,238,.6)}
+
+    /* RSVP深底 */
+    .card-rsvp{
+      background:rgba(12,58,110,.6);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 4px 24px rgba(0,0,0,.2);
+    }
+    .card-rsvp .card-title{color:var(--gold)}
+    .card-rsvp .rsvp-note{color:rgba(255,248,238,.55)}
+
+    .card-title{
+      font-family:'ZCOOL KuaiLe','STKaiti',sans-serif;
+      font-size:21px;text-align:center;margin-bottom:16px;
+    }
+
+    /* ===== 邀请语 ===== */
+    .invite-text{text-align:center;line-height:2;font-size:15px;letter-spacing:.5px}
+    .invite-text .highlight{color:var(--gold);font-weight:600}
+
+    /* ===== 航班 ===== */
+    .flight{margin-bottom:16px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.06)}
+    .flight:last-child{margin-bottom:0}
+    .flight-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .flight-tag{font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:1px}
+    .flight-tag.go{background:rgba(255,107,53,.2);color:#ff9f43}
+    .flight-tag.back{background:rgba(29,209,161,.2);color:#1dd1a1}
+    .flight-code{font-size:12px;letter-spacing:.5px}
+    .flight-route{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+    .flight-pt{flex:1;text-align:center}
+    .flight-time{font-family:'Caveat',cursive;font-size:26px;color:var(--gold);font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.2)}
+    .flight-city{font-size:12px;margin-top:2px}
+    .flight-mid{flex:0 0 auto;text-align:center;padding:0 4px}
+    .flight-plane{font-size:18px;animation:planeFly 2s ease-in-out infinite;color:var(--sun-glow)}
+    .flight-dur{font-size:11px;display:block;margin-top:2px;color:rgba(255,248,238,.4)}
+    .flight-date-row{text-align:center;font-size:12px;margin-top:4px}
+
+    /* ===== 三日行程 ===== */
+    .day-block{margin-bottom:20px}
+    .day-block:last-child{margin-bottom:0}
+    .day-head{
+      display:flex;align-items:center;gap:10px;margin-bottom:12px;
+      padding-bottom:8px;border-bottom:1px solid rgba(255,215,0,.18);
+    }
+    .day-num{font-family:'Caveat',cursive;font-size:22px;color:var(--gold);font-weight:700}
+    .day-date{font-size:13px}
+
+    /* ===== 时间轴 ===== */
+    .timeline{position:relative;padding-left:28px}
+    .timeline::before{
+      content:'';position:absolute;left:6px;top:8px;bottom:8px;width:1px;
+      background:linear-gradient(to bottom,var(--gold),rgba(255,215,0,.25),transparent);
+    }
+    .tl-item{position:relative;margin-bottom:14px}
+    .tl-item:last-child{margin-bottom:0}
+    .tl-item::before{
+      content:'';position:absolute;left:-25px;top:5px;
+      width:10px;height:10px;border-radius:50%;
+      background:radial-gradient(circle,var(--gold),var(--warm-gold));
+      animation:nodePulse 3s ease-in-out infinite;
+    }
+    .tl-time{font-family:'Caveat',cursive;font-size:16px;color:var(--gold);font-weight:700;margin-bottom:2px;text-shadow:0 1px 3px rgba(0,0,0,.1)}
+    .tl-name{font-size:15px;margin-bottom:2px;font-weight:600}
+    .tl-desc{font-size:13px;line-height:1.5}
+
+    /* ===== 牛岛攻略 ===== */
+    .udo-card{
+      margin-top:10px;padding:14px;border-radius:14px;
+      background:rgba(46,232,208,.08);border:1px solid rgba(46,232,208,.15);
+    }
+    .udo-title{font-size:14px;color:#5ee8d0;font-weight:600;margin-bottom:10px}
+    .udo-list{font-size:13px;color:rgba(255,248,238,.6);line-height:1.9}
+    .udo-list .spot{color:rgba(255,248,238,.9);font-weight:600}
+
+    /* ===== 着装 ===== */
+    .dress-row{display:flex;gap:14px;justify-content:center;margin-bottom:16px}
+    .dress-box{flex:1;text-align:center;padding:16px 10px;border-radius:16px;background:rgba(255,255,255,.1)}
+    .dress-emoji{font-size:44px;margin-bottom:8px;display:block}
+    .dress-label{font-size:14px;font-weight:600;margin-bottom:4px}
+    .dress-hint{font-size:12px;line-height:1.5}
+    .color-swatches{display:flex;gap:7px;justify-content:center;margin-bottom:14px}
+    .swatch{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.3);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+    .dress-note{text-align:center;font-size:13px;line-height:1.7}
+
+    /* ===== 出行 ===== */
+    .tip-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .tip-item{padding:12px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.08)}
+    .tip-icon{font-size:20px;margin-bottom:6px;display:block}
+    .tip-label{font-size:13px;font-weight:600;margin-bottom:3px}
+    .tip-desc{font-size:12px;line-height:1.5}
+
+    /* ===== RSVP ===== */
+    .rsvp-note{text-align:center;font-size:13px;margin-bottom:18px;line-height:1.5}
+    .rsvp-btns{display:flex;flex-direction:column;gap:12px}
+    .btn{
+      padding:15px 28px;border-radius:50px;font-size:16px;
+      font-family:'Noto Serif SC',serif;cursor:pointer;border:none;
+      text-align:center;transition:all .3s ease;letter-spacing:1px;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .btn:active{transform:scale(.96)}
+    .btn-yes{
+      background:linear-gradient(135deg,var(--gold),var(--warm-gold));
+      color:var(--text-dark);font-weight:600;
+      box-shadow:0 4px 24px rgba(255,215,0,.35);
+    }
+    .btn-no{
+      background:transparent;color:rgba(255,248,238,.6);
+      border:1.5px solid rgba(255,215,0,.25);
+    }
+    .btn-no:active{background:rgba(255,215,0,.06)}
+
+    /* ===== Toast ===== */
+    .toast{
+      position:fixed;bottom:40px;left:50%;
+      transform:translateX(-50%) translateY(80px);
+      background:rgba(12,58,110,.92);border:1px solid var(--gold);
+      padding:14px 28px;border-radius:50px;font-size:15px;color:var(--text-cream);
+      z-index:100;pointer-events:none;opacity:0;
+      transition:all .4s cubic-bezier(.22,1,.36,1);
+      backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+      box-shadow:0 8px 32px rgba(0,0,0,.3);
+    }
+    .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+    .footer{text-align:center;padding:28px 0 12px;color:rgba(255,248,238,.35);font-size:12px;letter-spacing:2px}
+
+    /* ===== 桌面端响应式 ===== */
+    @media(min-width:768px){
+      .hero h1{font-size:46px;line-height:1.3}
+      .hero .label{font-size:20px}
+      .hero .dest{font-size:34px}
+      .card{padding:30px 28px}
+      .card-title{font-size:24px;margin-bottom:20px}
+      .invite-text{font-size:17px}
+      .flight-time{font-size:32px}
+      .flight-city{font-size:14px}
+      .flight-code{font-size:14px}
+      .flight-date-row{font-size:13px}
+      .tl-name{font-size:16px}
+      .tl-desc{font-size:14px}
+      .tl-time{font-size:18px}
+      .day-num{font-size:26px}
+      .day-date{font-size:15px}
+      .dress-emoji{font-size:56px}
+      .dress-label{font-size:16px}
+      .dress-hint{font-size:14px}
+      .tip-label{font-size:14px}
+      .tip-desc{font-size:13px}
+      .tip-icon{font-size:24px}
+      .btn{font-size:18px;padding:16px 36px}
+      .rsvp-btns{flex-direction:row;justify-content:center;gap:16px}
+      .rsvp-btns .btn{min-width:200px}
+      /* 航班横排 */
+      .flights-row{display:flex;gap:16px}
+      .flights-row .flight{flex:1;margin-bottom:0}
+      /* 三日行程横排 */
+      .days-row{display:flex;gap:18px}
+      .days-row .day-block{flex:1;margin-bottom:0}
+      /* 着装+出行并排 */
+      .info-row{display:flex;gap:18px}
+      .info-row>.card{flex:1;margin-bottom:0}
+      .tip-grid{grid-template-columns:1fr 1fr 1fr}
+    }
+    @media(min-width:1100px){
+      .hero h1{font-size:54px}
+      .hero .dest{font-size:38px}
+      .card{padding:34px 32px}
+      .card-title{font-size:26px}
+      .invite-text{font-size:18px}
+      .sun{width:140px;height:140px}
+      .sun-halo{width:260px;height:260px}
+      .sun-rays{width:240px;height:240px}
+      .lighthouse{width:10px;height:50px}
+    }
+    @media(max-width:360px){.hero h1{font-size:28px}.card{padding:20px 14px}.tip-grid{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+
+  <!-- 场景背景 -->
+  <div class="scene">
+    <div class="bg-photo"></div>
+    <div class="bg-sea-photo"></div>
+    <div class="sea-glass"></div>
+    <div class="color-overlay"></div>
+    <div class="darken-bottom"></div>
+    <div class="sun"></div>
+    <div class="sun-halo"></div>
+    <div class="sun-rays"></div>
+    <div class="sun-reflection"></div>
+    <div class="bird bird-1"></div>
+    <div class="bird bird-2"></div>
+    <div class="bird bird-3"></div>
+  </div>
+
+  <div class="lights" id="lights"></div>
+  <div class="confetti-box" id="confetti"></div>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="label">Team Trip 2026</div>
+      <h1>济州山海为序<br>团队同心为码</h1>
+      <div class="divider"></div>
+      <div class="info">
+        <div class="date">2026年5月29日 – 5月31日</div>
+        <div class="dest">🇰🇷 韩国 · 济州岛</div>
+      </div>
+    </section>
+
+    <div class="sep" style="animation-delay:1.5s">
+      <span class="line line-l"></span><span class="dot">✦</span><span class="line line-r"></span>
+    </div>
+
+    <!-- 邀请语 -->
+    <section class="card card-sky" style="animation-delay:1.7s">
+      <div class="card-title">💌 诚邀同行</div>
+      <div class="invite-text">
+        海风吹来远方的邀请，<br>
+        山海之间藏着我们的故事。<br><br>
+        三天两夜，济州岛的风与海，<br>
+        等你一起写下最温暖的篇章。<br><br>
+        <span class="highlight">出发吧，我们在济州等你！✈️</span>
+      </div>
+    </section>
+
+    <!-- 航班 -->
+    <section class="card card-cliff" style="animation-delay:2s">
+      <div class="card-title">✈️ 航班信息</div>
+      <div class="flights-row">
+        <div class="flight">
+          <div class="flight-head">
+            <span class="flight-tag go">去程</span>
+            <span class="flight-code">KE2066 大韩航空</span>
+          </div>
+          <div class="flight-route">
+            <div class="flight-pt">
+              <div class="flight-time">10:50</div>
+              <div class="flight-city">北京首都</div>
+            </div>
+            <div class="flight-mid">
+              <span class="flight-plane">✈</span>
+              <span class="flight-dur">2h35m</span>
+            </div>
+            <div class="flight-pt">
+              <div class="flight-time">14:25</div>
+              <div class="flight-city">济州</div>
+            </div>
+          </div>
+          <div class="flight-date-row">5月29日 周五 · 经济舱 · 含1件托运</div>
+        </div>
+        <div class="flight">
+          <div class="flight-head">
+            <span class="flight-tag back">回程</span>
+            <span class="flight-code">9C7206 春秋航空</span>
+          </div>
+          <div class="flight-route">
+            <div class="flight-pt">
+              <div class="flight-time">22:35</div>
+              <div class="flight-city">济州</div>
+            </div>
+            <div class="flight-mid">
+              <span class="flight-plane">✈</span>
+              <span class="flight-dur">1h20m</span>
+            </div>
+            <div class="flight-pt">
+              <div class="flight-time">23:55</div>
+              <div class="flight-city">北京大兴</div>
+            </div>
+          </div>
+          <div class="flight-date-row">5月31日 周日 · 经济舱 · 20KG托运</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 三日行程 -->
+    <section class="card card-water" style="animation-delay:2.3s">
+      <div class="card-title">🏝️ 三日行程</div>
+
+      <div class="days-row">
+        <div class="day-block">
+          <div class="day-head">
+            <span class="day-num">Day 1</span>
+            <span class="day-date">5月29日 周五</span>
+          </div>
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-time">10:50</div>
+              <div class="tl-name">北京出发</div>
+              <div class="tl-desc">KE2066 首都机场T2起飞</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">14:25</div>
+              <div class="tl-name">抵达济州</div>
+              <div class="tl-desc">入境后前往酒店入住休整</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">18:00</div>
+              <div class="tl-name">欢迎聚餐 🥩</div>
+              <div class="tl-desc">济州黑猪肉烤肉，犒劳辛苦的自己</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">20:00</div>
+              <div class="tl-name">互换礼物 🎁</div>
+              <div class="tl-desc">每人准备一份小礼物，抽签互换惊喜</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-head">
+            <span class="day-num">Day 2</span>
+            <span class="day-date">5月30日 周六</span>
+          </div>
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-time">08:30</div>
+              <div class="tl-name">出发前往城山港</div>
+              <div class="tl-desc">乘渡轮登牛岛（约15分钟航程）</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">09:30</div>
+              <div class="tl-name">牛岛环岛游 🚲</div>
+              <div class="tl-desc">租电动车/自行车自由环岛</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">17:00</div>
+              <div class="tl-name">返回济州本岛</div>
+              <div class="tl-desc">渡轮回程，晚餐自由安排</div>
+            </div>
+          </div>
+          <div class="udo-card">
+            <div class="udo-title">🗺️ 牛岛一日游推荐路线</div>
+            <div class="udo-list">
+              <span class="spot">❶ 西滨白沙</span> — 蓝宝石海水+白沙滩，济州最美海滩<br>
+              <span class="spot">❷ 牛岛峰</span> — 火山丘登顶，360°俯瞰全岛<br>
+              <span class="spot">❸ 红灯塔</span> — 红白灯塔配碧海，超好拍<br>
+              <span class="spot">❹ 下古水洞黑沙滩</span> — 独特火山黑沙，济州独有<br>
+              🍦 必吃：牛岛花生冰淇淋、海鲜拉面<br>
+              💡 岛上租电动车约 ₩30000/天，需国际驾照；自行车无需
+            </div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-head">
+            <span class="day-num">Day 3</span>
+            <span class="day-date">5月31日 周日</span>
+          </div>
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-time">上午</div>
+              <div class="tl-name">自由购物 🛍️</div>
+              <div class="tl-desc">免税店/乐天/新罗，买买买时间</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">下午</div>
+              <div class="tl-name">济州市区自由行</div>
+              <div class="tl-desc">东门市场小吃、龙头岩散步</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-time">22:35</div>
+              <div class="tl-name">返程航班</div>
+              <div class="tl-desc">9C7206 济州 → 北京大兴，23:55抵达</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 着装建议 + 出行贴士 -->
+    <div class="info-row">
+    <section class="card card-light" style="animation-delay:2.6s">
+      <div class="card-title">👔 着装建议</div>
+      <div class="dress-row">
+        <div class="dress-box">
+          <span class="dress-emoji">👔</span>
+          <div class="dress-label">男生</div>
+          <div class="dress-hint">短袖衬衫<br>休闲短裤<br>凉鞋/帆布鞋</div>
+        </div>
+        <div class="dress-box">
+          <span class="dress-emoji">👗</span>
+          <div class="dress-label">女生</div>
+          <div class="dress-hint">碎花连衣裙<br>防晒开衫<br>草帽+凉拖</div>
+        </div>
+      </div>
+      <div class="color-swatches">
+        <div class="swatch" style="background:#48dbfb"></div>
+        <div class="swatch" style="background:#55efc4"></div>
+        <div class="swatch" style="background:#ffeaa7"></div>
+        <div class="swatch" style="background:#fdcb6e"></div>
+        <div class="swatch" style="background:#ff9ff3"></div>
+        <div class="swatch" style="background:#ffffff"></div>
+      </div>
+      <div class="dress-note">清爽夏日色系：天蓝、薄荷绿、鹅黄、珊瑚粉<br>记得带防晒霜和墨镜 🕶️</div>
+    </section>
+
+    </section>
+    <section class="card card-light" style="animation-delay:2.9s">
+      <div class="card-title">📋 出行贴士</div>
+      <div class="tip-grid">
+        <div class="tip-item">
+          <span class="tip-icon">🛂</span>
+          <div class="tip-label">护照签证</div>
+          <div class="tip-desc">护照有效期6个月以上；济州岛免签30天</div>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">🔌</span>
+          <div class="tip-label">电源转换</div>
+          <div class="tip-desc">韩国圆两脚插头，220V；需带转换头</div>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">💱</span>
+          <div class="tip-label">换汇建议</div>
+          <div class="tip-desc">机场/便利店ATM取韩币，部分店支持银联</div>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">📱</span>
+          <div class="tip-label">网络通讯</div>
+          <div class="tip-desc">提前租WiFi蛋或开通国际漫游</div>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">🌤️</span>
+          <div class="tip-label">济州天气</div>
+          <div class="tip-desc">5月底约18-25°C，早晚微凉，带薄外套</div>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">🧴</span>
+          <div class="tip-label">防晒必备</div>
+          <div class="tip-desc">紫外线较强，防晒霜SPF50+、墨镜、帽子</div>
+        </div>
+      </div>
+    </section>
+
+    </section>
+    </div>
+
+    <!-- RSVP -->
+    <section class="card card-rsvp" style="animation-delay:3.2s;text-align:center">
+      <div class="card-title">RSVP</div>
+      <div class="rsvp-note">请尽快回复，方便我们确认人数 💛</div>
+      <div class="rsvp-btns">
+        <button class="btn btn-yes" id="btnYes">🏝️ 我会参加</button>
+        <button class="btn btn-no" id="btnNo">很遗憾不能到</button>
+      </div>
+    </section>
+
+    <div class="footer">✦ 济州山海，等你来赴 ✦</div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    /* 海面光斑（近岸密集，远岸稀疏） */
+    (function(){
+      var sea=document.querySelector('.scene');
+      /* 近岸光斑 */
+      for(var i=0;i<14;i++){
+        var sp=document.createElement('div');sp.className='sea-sparkle';
+        var sz=Math.random()*8+3;
+        sp.style.cssText='left:'+Math.random()*100+'%;bottom:'+(Math.random()*20+5)+'%;width:'+sz+'px;height:'+sz+'px;--dur:'+(Math.random()*3+2)+'s;--del:'+(Math.random()*4)+'s;';
+        sea.appendChild(sp);
+      }
+      /* 远岸光斑 */
+      for(var j=0;j<8;j++){
+        var sp2=document.createElement('div');sp2.className='sea-sparkle';
+        var sz2=Math.random()*5+2;
+        sp2.style.cssText='left:'+Math.random()*100+'%;bottom:'+(Math.random()*30+25)+'%;width:'+sz2+'px;height:'+sz2+'px;--dur:'+(Math.random()*4+3)+'s;--del:'+(Math.random()*5)+'s;opacity:.5;';
+        sea.appendChild(sp2);
+      }
+    })();
+
+    /* 漂浮光点 */
+    (function(){
+      var box=document.getElementById('lights');
+      var colors=[
+        'radial-gradient(circle,rgba(255,243,205,.15),transparent 70%)',
+        'radial-gradient(circle,rgba(255,215,0,.1),transparent 70%)',
+        'radial-gradient(circle,rgba(46,232,208,.08),transparent 70%)'
+      ];
+      for(var i=0;i<5;i++){
+        var g=document.createElement('div');g.className='glow';
+        var sz=Math.random()*110+50;
+        g.style.cssText='left:'+(Math.random()*80+10)+'%;top:'+(Math.random()*70+15)+'%;width:'+sz+'px;height:'+sz+'px;background:'+colors[i%3]+';--dur:'+(Math.random()*10+12)+'s;--del:'+(Math.random()*6)+'s;';
+        box.appendChild(g);
+      }
+    })();
+
+    /* 纸屑：金/天蓝/薄荷/鹅黄/白/绿色树叶 */
+    (function(){
+      var box=document.getElementById('confetti');
+      var colors=['#ffd700','#48dbfb','#55efc4','#ffeaa7','#ffffff','#2ecc71'];
+      for(var i=0;i<50;i++){
+        var c=document.createElement('div');
+        var isLeaf=Math.random()<0.15;
+        if(isLeaf){
+          c.className='confetti leaf';
+          c.style.cssText='left:'+Math.random()*100+'%;width:12px;height:10px;background:#2ecc71;--dur:'+(Math.random()*5+8)+'s;--del:'+(Math.random()*10)+'s;--sway:'+((Math.random()-.5)*100)+'px;';
+        }else{
+          var shapes=['circle','bar','square'];
+          var sh=shapes[Math.floor(Math.random()*shapes.length)];
+          c.className='confetti '+sh;
+          var sz=Math.random()*7+3;
+          var sway=(Math.random()-.5)*80;
+          var w,h;
+          if(sh==='circle'){w=sz;h=sz}else if(sh==='bar'){w=sz*.4;h=sz*1.5}else{w=sz;h=sz*.7}
+          c.style.cssText='left:'+Math.random()*100+'%;width:'+w+'px;height:'+h+'px;background:'+colors[Math.floor(Math.random()*colors.length)]+';--dur:'+(Math.random()*5+7)+'s;--del:'+(Math.random()*10)+'s;--sway:'+sway+'px;';
+        }
+        box.appendChild(c);
+      }
+    })();
+
+    /* RSVP */
+    var toastEl=document.getElementById('toast');
+    var toastTimer=null;
+    function showToast(msg){
+      clearTimeout(toastTimer);
+      toastEl.textContent=msg;
+      toastEl.classList.add('show');
+      toastTimer=setTimeout(function(){toastEl.classList.remove('show')},2800);
+    }
+    document.getElementById('btnYes').addEventListener('click',function(){
+      showToast('🎉 太棒了，正在跳转填写信息…');
+      setTimeout(function(){window.open('https://www.wjx.top/vm/rEPuUmM.aspx','_blank')},800);
+    });
+    document.getElementById('btnNo').addEventListener('click',function(){
+      showToast('没关系，下次再一起出发～ 💛');
+      setTimeout(function(){window.open('https://www.wjx.top/vm/rEPuUmM.aspx','_blank')},800);
+    });
+  </script>
+</body>
+</html>
